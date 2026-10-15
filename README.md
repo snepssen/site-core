@@ -17,6 +17,12 @@ it lands.
     ./sync.sh "what changed"   # into every project beside this one: copy, rebuild, check, commit, push
     ./sync.sh --check          # does every project's copy match?
 
+Every project also pulls from here by itself: its
+`.github/workflows/workshop-pages.yml` runs this repository's reusable
+`sync-pages.yml` once a day (or on demand from its Actions tab), with its own
+token, so a change pushed here reaches every page within a day even when
+nobody runs `sync.sh`.
+
 A project whose `docs/` has uncommitted changes is skipped and named, so
 nobody's work in progress is swept into a sync. Fonts and each page's own
 `style.css` and `page.py` are the project's, and stay there.

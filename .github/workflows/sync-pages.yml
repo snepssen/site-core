@@ -1,0 +1,43 @@
+name: sync workshop pages
+
+# Called from every project's own "workshop pages" workflow, daily and on
+# demand. It does what ./sync.sh does locally, for the one repository that
+# called it: copy site-core's four shared files into docs/, rebuild the page
+# (docs/build.py from docs/page.py, or a hand-written page's docs/sync.py),
+# check it, and commit and push only if something changed. Each project pulls
+# its own update with its own token, so site-core needs no secret.
+on:
+  workflow_call:
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          repository: snepssen/site-core
+          path: .site-core
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Copy, rebuild, check
+        run: |
+          for f in build.py ecosystem.css ecosystem.js ecosystem.json; do cp ".site-core/$f" "docs/$f"; done
+          rm -rf .site-core
+          if [ -f docs/page.py ]; then page="python3 docs/build.py"
+          elif [ -f docs/sync.py ]; then page="python3 docs/sync.py"
+          else page=""; fi
+          if [ -n "$page" ]; then $page >/dev/null && $page --check; fi
+      - name: Commit and push if changed
+        run: |
+          git add docs
+          if git diff --cached --quiet; then echo "already current"; exit 0; fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -q -m "Workshop pages: synced from site-core"
+          git push -q origin HEAD
+          echo "synced and pushed"
