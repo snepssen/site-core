@@ -27,7 +27,8 @@ slugs=$(python3 -c "import json; print('\n'.join(p['slug'] for p in json.load(op
 drift=(); skipped=(); updated=()
 for slug in $slugs; do
   docs="$ROOT/$slug/docs"
-  [ -d "$docs" ] || { echo "-- $slug: not checked out beside site-core"; continue; }
+  [ -d "$ROOT/$slug" ] || { echo "-- $slug: not checked out beside site-core"; continue; }
+  [ -d "$docs" ] || continue  # listed in the network, but has no page of its own
   same=true
   for f in "${FILES[@]}"; do cmp -s "$f" "$docs/$f" || same=false; done
   if $CHECK; then $same || drift+=("$slug"); continue; fi
