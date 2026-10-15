@@ -44,6 +44,8 @@ for slug in $slugs; do
   if [ -n "$(git -C "$ROOT/$slug" status --porcelain -- docs)" ]; then
     skipped+=("$slug"); echo "!! $slug: docs/ has uncommitted changes, skipped"; continue
   fi
+  # GitHub Actions commits here too (workshop-pages.yml): start from its latest.
+  git -C "$ROOT/$slug" pull -q --ff-only || { skipped+=("$slug"); echo "!! $slug: could not fast-forward, skipped"; continue; }
   for f in "${FILES[@]}"; do cp "$f" "$docs/$f"; done
   if [ ${#page[@]} -gt 0 ]; then
     (cd "$ROOT/$slug" && "${page[@]}" >/dev/null && "${page[@]}" --check >/dev/null)
