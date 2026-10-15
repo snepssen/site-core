@@ -11,7 +11,8 @@
 # but the copy is an artifact of this repository, never edited where it lands.
 # A change is made here and synced: every project that ecosystem.json lists
 # and that is checked out beside this one gets the files, its page rebuilt
-# (docs/build.py, where the project has a docs/page.py) and checked, and a
+# (docs/build.py from its docs/page.py, or a hand-written page's own
+# docs/sync.py, which rewrites just the shared regions) and checked, and a
 # commit pushed. A project whose docs/ has uncommitted changes is skipped and
 # named, so nobody's work in progress is swept into a sync.
 set -euo pipefail
@@ -31,14 +32,21 @@ for slug in $slugs; do
   [ -d "$docs" ] || continue  # listed in the network, but has no page of its own
   same=true
   for f in "${FILES[@]}"; do cmp -s "$f" "$docs/$f" || same=false; done
-  if $CHECK; then $same || drift+=("$slug"); continue; fi
-  $same && { echo "   $slug: already current"; continue; }
+  if [ -f "$docs/page.py" ]; then page=(python3 docs/build.py)
+  elif [ -f "$docs/sync.py" ]; then page=(python3 docs/sync.py)
+  else page=(); fi
+  current=true
+  if $same && [ ${#page[@]} -gt 0 ]; then
+    (cd "$ROOT/$slug" && "${page[@]}" --check >/dev/null 2>&1) || current=false
+  fi
+  if $CHECK; then { $same && $current; } || drift+=("$slug"); continue; fi
+  { $same && $current; } && { echo "   $slug: already current"; continue; }
   if [ -n "$(git -C "$ROOT/$slug" status --porcelain -- docs)" ]; then
     skipped+=("$slug"); echo "!! $slug: docs/ has uncommitted changes, skipped"; continue
   fi
   for f in "${FILES[@]}"; do cp "$f" "$docs/$f"; done
-  if [ -f "$docs/page.py" ]; then
-    (cd "$ROOT/$slug" && python3 docs/build.py >/dev/null && python3 docs/build.py --check >/dev/null)
+  if [ ${#page[@]} -gt 0 ]; then
+    (cd "$ROOT/$slug" && "${page[@]}" >/dev/null && "${page[@]}" --check >/dev/null)
   fi
   (cd "$ROOT/$slug" && git add docs && git commit -q -m "Workshop pages: $MESSAGE (from site-core)" \
     && git push -q origin HEAD)
