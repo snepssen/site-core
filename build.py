@@ -206,8 +206,16 @@ def section_links(page, ecosystem):
     items.append(("contact", "Contact"))
     links = "\n".join(f'      <a href="#{anchor}">{label}</a>'
                       for anchor, label in items)
-    return f"""    <div class="ecosystem-rail__jumps">
+    # Links that do not fit stay whole, in a menu. A scrolling row was
+    # cutting the last visible word in half against the Workshop button.
+    return f"""    <div class="ecosystem-rail__jumps" role="navigation" aria-label="On this page">
 {links}
+    </div>
+    <div class="ecosystem-rail__more" hidden>
+      <button class="ecosystem-rail__more-btn" type="button" aria-expanded="false"
+              aria-controls="ecosystem-page-sections">More</button>
+      <div class="ecosystem-rail__more-panel" id="ecosystem-page-sections" role="navigation"
+           aria-label="On this page" hidden></div>
     </div>
 """
 
@@ -229,9 +237,9 @@ def rail(ecosystem, slug, page=None):
     # live inside that span or the hub would never receive it.
     return f"""
 <span class="ecosystem-page-top" id="page-top" aria-hidden="true"></span>
-<div class="ecosystem-progress" aria-hidden="true"><span></span></div>
 {flower_mark("piece", "ecosystem-mark ecosystem-mark--piece")}
 <nav class="ecosystem-rail" aria-label="Snepssen project network">
+  <div class="ecosystem-progress" aria-hidden="true"><span></span></div>
   <div class="ecosystem-rail__inner">
     <a class="ecosystem-rail__home" href="#page-top">
       {flower_mark("rail", "ecosystem-mark")}
@@ -309,12 +317,14 @@ def grid_inner(ecosystem, slug):
 def grid(ecosystem, slug):
     """The closing grid, in the form the whole family uses.
 
-    `data-eco-reveal` is what ecosystem.js watches to fade the cards in; siphon
-    was hand-written without it and so its grid never animated. That is the
-    kind of difference a generated chrome exists to stop.
+    The cards are painted as they are. A scroll reveal that starts them at
+    opacity 0 leaves an empty band in a full-page capture, with scripting
+    off, and after a jump to an anchor — the observer never gets a chance
+    to bring them back. Siphon used to omit the hook and so never animated;
+    the generated page now agrees with that, on purpose.
     """
     return f"""
-<section class="ecosystem-more" aria-labelledby="ecosystem-heading" data-eco-reveal>
+<section class="ecosystem-more" aria-labelledby="ecosystem-heading">
 {grid_inner(ecosystem, slug)}
 </section>
 """

@@ -3,6 +3,16 @@
    when they disagree. Accents stay per project. Type is the system face:
    nothing here asks a font CDN for the visit. */
 
+/* A length, not a ch, so it is resolved once against the body face and
+   inherited as pixels. Otherwise a heading's own 68ch is wider than the
+   frame, the paragraph's is not, and margin:auto centres them on
+   different left edges. */
+@property --prose {
+  syntax: "<length>";
+  inherits: true;
+  initial-value: 0px;
+}
+
 :root {
   color-scheme: dark;
   --eco-gateway: #b69aff;
@@ -148,6 +158,7 @@ body {
   color: var(--ink);
   font-family: var(--eco-sans);
   font-size: 17px;
+  --prose: 68ch;
   line-height: 1.6;
   -webkit-font-smoothing: antialiased;
 }
@@ -160,13 +171,14 @@ h3 { margin: 28px 0 12px; }
   max-width: var(--eco-frame);
   margin-inline: auto;
 }
-/* A centred reading column. Figures, tables and the card grid stay on the
-   frame; the prose no longer sits in a narrow left-hand strip. */
+/* One left edge for eyebrows, headings, prose and captions. The column is
+   the body's 68ch, so a 36px heading does not centre a different box.
+   Figures, tables and the card grid stay on the frame. */
 .wrap > section > :is(p, h2, h3, ul, ol),
 .wrap > section > .eyebrow {
-  max-width: var(--measure);
-  margin-left: auto;
-  margin-right: auto;
+  max-width: var(--prose, 68ch);
+  margin-left: 0;
+  margin-right: 0;
 }
 .wrap > section > h2 { margin-bottom: 16px; }
 .wrap > section > h3 { margin-top: 28px; margin-bottom: 12px; }
@@ -199,7 +211,7 @@ section[id], header[id], h2[id], .ecosystem-more {
   font-family: var(--eco-mono);
   font-weight: 600;
   text-transform: uppercase;
-  margin: 0 auto 12px;
+  margin: 0 0 12px;
 }
 .badge {
   color: var(--muted);
@@ -211,7 +223,7 @@ section[id], header[id], h2[id], .ecosystem-more {
 .caption, .shot figcaption, .figure figcaption, .window figcaption, figcaption {
   display: block;
   margin: 12px 0 28px;
-  max-width: var(--measure);
+  max-width: var(--prose, 68ch);
   font-size: 13px;
   line-height: 1.45;
   color: var(--muted);
@@ -223,11 +235,11 @@ section[id], header[id], h2[id], .ecosystem-more {
 /* ---------------------------------------------------------------- the bar */
 .ecosystem-page-top { display: block; width: 0; height: 0; }
 .ecosystem-progress {
-  position: fixed;
-  z-index: 1002;
-  top: calc(var(--eco-bar) - 3px);
+  position: absolute;
+  z-index: 2;
+  right: 0;
+  bottom: 0;
   left: 0;
-  width: 100%;
   height: 3px;
   pointer-events: none;
   background: color-mix(in srgb, var(--ink) 12%, transparent);
@@ -244,7 +256,8 @@ section[id], header[id], h2[id], .ecosystem-more {
   position: sticky;
   z-index: 1000;
   top: 0;
-  height: var(--eco-bar);
+  height: auto;
+  min-height: var(--eco-bar);
   border-bottom: 1px solid var(--line);
   background: color-mix(in srgb, var(--ground) 88%, transparent);
   color: var(--ink);
@@ -255,11 +268,21 @@ section[id], header[id], h2[id], .ecosystem-more {
 .ecosystem-rail__inner {
   position: relative;
   width: min(var(--eco-frame), calc(100% - 48px));
-  height: 100%;
+  height: auto;
+  min-height: var(--eco-bar);
   margin-inline: auto;
   display: flex;
   align-items: center;
-  gap: 8px;
+  flex-wrap: wrap;
+  gap: 4px 8px;
+}
+.ecosystem-rail.is-managed {
+  height: var(--eco-bar);
+}
+.ecosystem-rail.is-managed .ecosystem-rail__inner {
+  flex-wrap: nowrap;
+  height: 100%;
+  padding-block: 0;
 }
 .ecosystem-rail__home {
   display: inline-flex;
@@ -273,6 +296,8 @@ section[id], header[id], h2[id], .ecosystem-more {
 .ecosystem-rail__home:focus-visible,
 .ecosystem-rail__brand:focus-visible,
 .ecosystem-rail__jumps a:focus-visible,
+.ecosystem-rail__more-btn:focus-visible,
+.ecosystem-rail__more-panel a:focus-visible,
 .ecosystem-rail__links a:focus-visible {
   outline: 2px solid var(--eco-current);
   outline-offset: 3px;
@@ -309,16 +334,19 @@ section[id], header[id], h2[id], .ecosystem-more {
 .ecosystem-rail__jumps {
   display: flex;
   align-items: center;
-  gap: 16px;
+  flex-wrap: wrap;
+  gap: 6px 16px;
   min-width: 0;
   flex: 1 1 auto;
-  margin-left: 20px;
-  overflow-x: auto;
-  overscroll-behavior-x: contain;
-  scrollbar-width: none;
+  margin-left: 12px;
+  overflow: visible;
 }
-.ecosystem-rail__jumps::-webkit-scrollbar { display: none; }
+.ecosystem-rail.is-managed .ecosystem-rail__jumps {
+  flex-wrap: nowrap;
+  overflow: hidden;
+}
 .ecosystem-rail__jumps a {
+  flex: 0 0 auto;
   color: var(--muted);
   text-decoration: none;
   font-size: 13px;
@@ -327,6 +355,55 @@ section[id], header[id], h2[id], .ecosystem-more {
   text-transform: none;
   white-space: nowrap;
 }
+.ecosystem-rail__more:not([hidden]) {
+  position: relative;
+  flex: 0 0 auto;
+}
+.ecosystem-rail__more-btn {
+  appearance: none;
+  border: 0;
+  margin: 0;
+  padding: 8px 4px;
+  background: transparent;
+  color: var(--muted);
+  font: 500 13px/1 var(--eco-sans);
+  letter-spacing: 0;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.ecosystem-rail__more-btn:hover,
+.ecosystem-rail.is-sections .ecosystem-rail__more-btn { color: var(--ink); }
+.ecosystem-rail__more-panel[hidden] { display: none; }
+.ecosystem-rail__more-panel:not([hidden]) {
+  position: absolute;
+  z-index: 3;
+  top: calc(100% + 10px);
+  right: 0;
+  display: flex;
+  flex-direction: column;
+  width: max-content;
+  min-width: 200px;
+  max-width: min(280px, calc(100vw - 32px));
+  max-height: min(70vh, 420px);
+  overflow: auto;
+  padding: 8px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.18);
+}
+.ecosystem-rail__more-panel a {
+  display: block;
+  padding: 8px 12px;
+  border-radius: 8px;
+  color: var(--ink);
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.3;
+  text-decoration: none;
+  white-space: nowrap;
+}
+.ecosystem-rail__more-panel a:hover { background: color-mix(in srgb, var(--eco-current) 14%, transparent); }
 .ecosystem-rail__jumps a:hover { color: var(--ink); }
 .ecosystem-rail__home + .ecosystem-rail__brand { margin-left: auto; }
 .ecosystem-rail__brand {
@@ -596,13 +673,6 @@ header.mast, header#top {
 .contact-card a:hover span,
 .contact-card a:focus-visible span { color: var(--eco-current); }
 
-.ecosystem-ready [data-eco-reveal] {
-  opacity: 0;
-  transform: translateY(12px);
-  transition: opacity 0.6s ease, transform 0.6s cubic-bezier(0.2, 0.8, 0.2, 1);
-}
-.ecosystem-ready [data-eco-reveal].is-visible { opacity: 1; transform: none; }
-
 /* ------------------------------------------------- tools-core, same system */
 body[data-project="tools-core"]::before { content: none; display: none; }
 body[data-project="tools-core"] .site-nav {
@@ -674,6 +744,11 @@ body[data-project="tools-core"] .intro {
   color: var(--ink);
   font-size: 19px;
   line-height: 1.5;
+}
+body[data-project="tools-core"] #contact :is(.eyebrow, h2, p) {
+  max-width: var(--prose, 68ch);
+  margin-left: 0;
+  margin-right: 0;
 }
 body[data-project="tools-core"] .hero-note {
   max-width: 46rem;
@@ -774,7 +849,6 @@ body[data-project="tools-core"] .wrap {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .ecosystem-ready [data-eco-reveal],
   .ecosystem-card::before,
   .ecosystem-rail__links,
   .ecosystem-rail__chevron { transition: none; }

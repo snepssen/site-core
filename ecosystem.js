@@ -11,21 +11,87 @@
   var rail = document.querySelector(".ecosystem-rail");
   var projectToggle = rail && rail.querySelector(".ecosystem-rail__brand");
   var projectMenu = rail && rail.querySelector(".ecosystem-rail__links");
+  var jumps = rail && rail.querySelector(".ecosystem-rail__jumps");
+  var moreWrap = rail && rail.querySelector(".ecosystem-rail__more");
+  var moreBtn = rail && rail.querySelector(".ecosystem-rail__more-btn");
+  var morePanel = rail && rail.querySelector(".ecosystem-rail__more-panel");
+
+  function setSections(open) {
+    if (!moreBtn || !morePanel) return;
+    rail.classList.toggle("is-sections", open);
+    moreBtn.setAttribute("aria-expanded", String(open));
+    if (open) morePanel.removeAttribute("hidden");
+    else morePanel.setAttribute("hidden", "");
+  }
   function setProjectMenu(open) {
     if (!rail || !projectToggle || !projectMenu) return;
     rail.classList.toggle("is-open", open);
     projectToggle.setAttribute("aria-expanded", String(open));
     projectToggle.setAttribute("aria-label", (open ? "Close" : "Open") + " workshop projects");
     projectMenu.setAttribute("aria-hidden", String(!open));
-    if (open) projectMenu.removeAttribute("inert");
-    else projectMenu.setAttribute("inert", "");
+    if (open) {
+      projectMenu.removeAttribute("inert");
+      setSections(false);
+    } else projectMenu.setAttribute("inert", "");
+  }
+  /* Keep every section name whole. Whatever does not fit the bar moves into
+     the menu, instead of being sliced at the edge of the row. */
+  function fitJumps() {
+    if (!rail || !jumps || !moreWrap || !moreBtn || !morePanel) return;
+    var links = Array.prototype.slice.call(jumps.querySelectorAll("a"));
+    links.forEach(function (a) { a.hidden = false; });
+    setSections(false);
+    morePanel.textContent = "";
+    moreWrap.hidden = true;
+    rail.classList.add("is-managed");
+    if (jumps.scrollWidth <= jumps.clientWidth) return;
+    moreWrap.hidden = false;
+    moreBtn.textContent = "Sections";
+    var hidden = [];
+    function clip() {
+      var box = jumps.getBoundingClientRect().right;
+      for (var i = links.length - 1; i >= 0; i--) {
+        if (links[i].hidden) continue;
+        if (links[i].getBoundingClientRect().right <= box + 0.5) break;
+        links[i].hidden = true;
+        hidden.unshift(links[i]);
+      }
+    }
+    for (var i = links.length - 1; i >= 0 && jumps.scrollWidth > jumps.clientWidth; i--) {
+      links[i].hidden = true;
+      hidden.unshift(links[i]);
+    }
+    clip();
+    moreBtn.textContent = hidden.length === links.length ? "Sections" : "More";
+    clip();
+    hidden.forEach(function (a) {
+      var item = a.cloneNode(true);
+      item.hidden = false;
+      morePanel.appendChild(item);
+    });
+  }
+  if (jumps && moreBtn) {
+    fitJumps();
+    addEventListener("resize", fitJumps);
+    if (document.fonts && document.fonts.ready) document.fonts.ready.then(fitJumps);
+    moreBtn.addEventListener("click", function () {
+      var open = moreBtn.getAttribute("aria-expanded") === "true";
+      setSections(!open);
+    });
+    morePanel.addEventListener("click", function (event) {
+      if (event.target.closest("a")) setSections(false);
+    });
   }
   if (projectToggle && projectMenu) {
     projectToggle.addEventListener("click", function () {
       setProjectMenu(projectToggle.getAttribute("aria-expanded") !== "true");
     });
     document.addEventListener("keydown", function (event) {
-      if (event.key === "Escape" && projectToggle.getAttribute("aria-expanded") === "true") {
+      if (event.key !== "Escape") return;
+      if (moreBtn && moreBtn.getAttribute("aria-expanded") === "true") {
+        setSections(false);
+        moreBtn.focus();
+      } else if (projectToggle.getAttribute("aria-expanded") === "true") {
         setProjectMenu(false);
         projectToggle.focus();
       }
@@ -33,6 +99,10 @@
     document.addEventListener("click", function (event) {
       if (projectToggle.getAttribute("aria-expanded") === "true" && !rail.contains(event.target)) {
         setProjectMenu(false);
+      }
+      if (moreBtn && moreBtn.getAttribute("aria-expanded") === "true" &&
+          moreWrap && !moreWrap.contains(event.target)) {
+        setSections(false);
       }
     });
   }
@@ -54,22 +124,6 @@
     }
   }, { passive: true });
   updateProgress();
-
-  var reduceMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
-  if (!reduceMotion && "IntersectionObserver" in window) {
-    document.documentElement.classList.add("ecosystem-ready");
-    var observer = new IntersectionObserver(function (entries) {
-      entries.forEach(function (entry) {
-        if (entry.isIntersecting) {
-          entry.target.classList.add("is-visible");
-          observer.unobserve(entry.target);
-        }
-      });
-    }, { threshold: 0.12 });
-    document.querySelectorAll("[data-eco-reveal]").forEach(function (el) {
-      observer.observe(el);
-    });
-  }
 
   document.querySelectorAll(".ecosystem-card").forEach(function (card) {
     card.addEventListener("pointermove", function (event) {
