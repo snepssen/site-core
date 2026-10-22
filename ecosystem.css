@@ -39,7 +39,6 @@ body[data-project="auto-sort"]{
 }
 body[data-project="interpreter-forge"] { --eco-current: var(--eco-interpreter); }
 body[data-project="companion-forge"] { --eco-current: var(--eco-companion); }
-body[data-project="speech-core"] { --eco-current: var(--eco-speechcore); }
 
 /* The five accents above are built for a dark ground and fail badly on a
    light one — measured against the lightest surface these pages use, the
