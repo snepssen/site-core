@@ -5,8 +5,8 @@
   },
   "grid": {
     "kicker": "The wider workshop",
-    "heading": "Twelve pieces, one local-first practice.",
-    "intro": "Move between guided-meditation authoring, measured speech, live interpreting, a voice companion, lyric video, delivery validation, keeping a Downloads folder empty, and the small field tools that support all of them, on one voice and one speech engine they share."
+    "heading": "Thirteen pieces, one local-first practice.",
+    "intro": "Move between guided-meditation authoring, measured speech, live interpreting, a voice companion, lyric video, delivery validation, keeping a Downloads folder empty, and the small field tools that support all of them, on one voice, one speech engine and one hearing layer they share."
   },
   "contact": {
     "eyebrow": "Get in touch",
@@ -102,7 +102,13 @@
       "glyph": "halb elf → 10:30",
       "blurb": "Hear the table in English a few seconds behind, cut at the end of each thought, on your own phone.",
       "repo": "https://github.com/snepssen/interpreter-forge",
-      "accent": "--eco-interpreter"
+      "accent": "--eco-interpreter",
+      "relationships": [
+        {
+          "slug": "speech-core",
+          "text": "Takes ObjCExceptions, SileroVAD, SampleBuffer and ModelStore from {name}, at 0.4.0."
+        }
+      ]
     },
     {
       "slug": "companion-forge",
@@ -124,8 +130,12 @@
           "text": "Uses {name}'s snepssen voice, the one the build bundles."
         },
         {
+          "slug": "speech-core",
+          "text": "Takes ObjCExceptions, SileroVAD, SampleBuffer and ModelStore from {name}, at 0.4.0."
+        },
+        {
           "slug": "interpreter-forge",
-          "text": "Reuses {name}'s speech pipeline pieces, copied with small changes: Silero VAD, Voice, SampleBuffer, the model store and PromptCache."
+          "text": "Reuses {name}'s PromptCache, copied with small changes, which is planned for speech-core 0.5.0."
         },
         {
           "slug": "protoke",
@@ -168,6 +178,18 @@
       "go": "Open the repository →",
       "repo": "https://github.com/snepssen/voice-core",
       "accent": "--eco-voicecore"
+    },
+    {
+      "slug": "speech-core",
+      "name": "speech-core",
+      "url": "https://github.com/snepssen/speech-core",
+      "index": "HEARING",
+      "platforms": "Swift · macOS · iOS",
+      "glyph": "mic → vad → store",
+      "blurb": "The hearing layer Interpreter and companion-forge share: ObjCExceptions, SileroVAD, SampleBuffer and ModelStore, from one source.",
+      "go": "Open the repository →",
+      "repo": "https://github.com/snepssen/speech-core",
+      "accent": "--eco-speechcore"
     },
     {
       "slug": "site-core",

@@ -13,6 +13,7 @@
   --eco-voicecore: #e8a878;
   --eco-sitecore: #b9c3d0;
   --eco-companion: #ff8ab8;
+  --eco-speechcore: #6ed9a0;
   --eco-current: var(--eco-protoke);
   --eco-copy: var(--ink, #f3f0e3);
   --eco-rail-h: 124px;
@@ -63,6 +64,7 @@ body[data-project="companion-forge"] { --eco-current: var(--eco-companion); }
     --eco-voicecore: #8f4718;
     --eco-sitecore: #475366;
     --eco-companion: #a04e6e;
+    --eco-speechcore: #0f7923;
   }
 }
 :root[data-theme="light"] {
@@ -78,6 +80,7 @@ body[data-project="companion-forge"] { --eco-current: var(--eco-companion); }
   --eco-voicecore: #8f4718;
   --eco-sitecore: #475366;
   --eco-companion: #a04e6e;
+  --eco-speechcore: #0f7923;
 }
 
 /* Wide diagrams and code samples own their scrolling inside their existing
