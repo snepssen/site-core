@@ -180,6 +180,8 @@ h3 { margin: 28px 0 12px; }
 .headmeta { margin-top: 28px; }
 .headmeta span { font-size: 13px; color: var(--muted); }
 section { padding: 72px 0; }
+/* A wide table scrolls inside the section. It must not push the page sideways. */
+.wrap > section { overflow-x: auto; }
 section[id], header[id], h2[id], .ecosystem-more {
   scroll-margin-top: calc(var(--eco-bar) + 18px);
 }
