@@ -117,11 +117,7 @@
       "relationships": [
         {
           "slug": "voice-core",
-          "text": "Depends on {name} for Piper."
-        },
-        {
-          "slug": "voice-forge",
-          "text": "Uses {name}'s English snepssen voice and its reading."
+          "text": "Speaks every language, English included, with the polyglot snepssen Piper voice through {name}."
         },
         {
           "slug": "voice-polyglot",
