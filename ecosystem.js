@@ -39,13 +39,7 @@
 
   var progress = document.querySelector(".ecosystem-progress span");
   var ticking = false;
-  var compact = false;
   function updateProgress() {
-    var nextCompact = compact ? scrollY > 24 : scrollY > 72;
-    if (nextCompact !== compact) {
-      compact = nextCompact;
-      document.documentElement.classList.toggle("ecosystem-compact", compact);
-    }
     if (progress) {
       var available = document.documentElement.scrollHeight - innerHeight;
       var amount = available > 0 ? Math.min(1, scrollY / available) : 0;
@@ -85,103 +79,79 @@
     });
   });
 
-  /* The SVG geometry never moves. Asymmetric, portrait-derived light fields
-     turn behind its mask, so colour exists only in the linework while the page
-     itself remains the background. */
-  var mark = document.querySelector(".ecosystem-mark");
-  var colourLayer = mark && mark.querySelector(".ecosystem-mark__colour");
-  var lightField = mark && mark.querySelector(".ecosystem-mark__light-field");
-  if (!mark || !colourLayer || !lightField) return;
+  /* One slow ease through every project's accent and then white.
+     The geometry does not spin and the colour does not cut: each stop holds,
+     then smoothsteps into the next. Both marks read the same custom property.
+     Reduced motion stays on the plain white line. */
+  if (!document.querySelector(".ecosystem-mark")) return;
 
-  var markPalettesDark = [
-    ["#060919", "#eae9ff", "#5d72d8", "#9183d8", "#cfd7ff"], // wolf
-    ["#07150f", "#0c5b43", "#d1a44a", "#f6e2b1", "#344968"], // dragon
-    ["#071c19", "#175241", "#7a182a", "#dc5c32", "#e8b777"], // deer
-    ["#120b17", "#e05b24", "#24cad4", "#e82d9d", "#7360c5"], // panda
-    ["#101a37", "#cce91d", "#c5c9d1", "#3855a6", "#f0efe6"], // rat
-    ["#23130d", "#7b4026", "#ef7865", "#2782a3", "#e7c095"], // otter
-    ["#0b0710", "#eee9df", "#474750", "#7e1735", "#d32656"]  // leopard / void
+  var flowerStops = [
+    [182, 154, 255], /* gateway */
+    [255, 188, 82],  /* voice */
+    [113, 229, 210], /* protoke */
+    [154, 230, 110], /* preflight */
+    [122, 167, 255], /* siphon */
+    [231, 155, 216], /* auto-sort */
+    [79, 208, 240],  /* interpreter */
+    [255, 138, 184], /* companion */
+    [255, 118, 95],  /* tools */
+    [255, 216, 79],  /* polyglot */
+    [232, 168, 120], /* voice-core */
+    [110, 217, 160], /* speech-core */
+    [185, 195, 208], /* site-core */
+    [255, 255, 255]
   ];
-  /* On a light surface the near-black anchors above occupy too much of the
-     tiny mark and read as holes. These keep the same identities, but lift the
-     broad base field into saturated midtones and reserve true black for the
-     three-second reset between palettes. */
-  var markPalettesLight = [
-    ["#6079dc", "#e8eaff", "#4665d1", "#8b70d1", "#b6c7ff"], // wolf
-    ["#28725c", "#168463", "#c79222", "#f0c85f", "#486e91"], // dragon
-    ["#277766", "#238368", "#a52d43", "#e7592f", "#d8a13c"], // deer
-    ["#7540a0", "#eb6428", "#08aebc", "#d9298f", "#6750bd"], // panda
-    ["#536fbd", "#9fbd00", "#9ca4b8", "#3159b1", "#ded76d"], // rat
-    ["#a35c3d", "#97502e", "#e86257", "#16829d", "#d29b4e"], // otter
-    ["#81405c", "#d8cad5", "#686574", "#9f2149", "#d62958"]  // leopard / void
-  ];
-  var forcedTheme = document.documentElement.dataset.theme;
-  var markOnLight = forcedTheme === "light" ||
-    (forcedTheme !== "dark" && matchMedia("(prefers-color-scheme: light)").matches);
-  var markPalettes = markOnLight ? markPalettesLight : markPalettesDark;
-  var markReduced = matchMedia("(prefers-reduced-motion: reduce)");
-  var markVisible = true;
-  var markFrame = 0;
-  var markStarted = performance.now();
-  var markPalette = -1;
-  var markColourTime = 3000;
-  var markResetTime = 3000;
-  var markSegment = markColourTime + markResetTime;
-  var markCycle = markSegment * markPalettes.length;
-  var markTurn = markCycle * 2;
+  var flowerDwell = 5200;
+  var flowerFrame = 0;
+  var flowerStarted = performance.now();
+  var flowerReduced = matchMedia("(prefers-reduced-motion: reduce)");
 
-  function markEase(value) {
+  function flowerEase(value) {
     return value * value * (3 - 2 * value);
   }
-  function setMarkPalette(index) {
-    if (index === markPalette) return;
-    markPalette = index;
-    mark.style.setProperty("--eco-mark-c0", markPalettes[index][0]);
-    mark.style.setProperty("--eco-mark-c1", markPalettes[index][1]);
-    mark.style.setProperty("--eco-mark-c2", markPalettes[index][2]);
-    mark.style.setProperty("--eco-mark-c3", markPalettes[index][3]);
-    mark.style.setProperty("--eco-mark-c4", markPalettes[index][4]);
+  function paintFlower(now) {
+    var count = flowerStops.length;
+    var cycle = flowerDwell * count;
+    /* The first frame's timestamp can be earlier than the clock we sampled
+       when the script ran, and a negative remainder walks off the palette. */
+    var elapsed = (typeof now === "number" ? now : flowerStarted) - flowerStarted;
+    if (!(elapsed >= 0)) elapsed = 0;
+    elapsed = elapsed % cycle;
+    var index = Math.min(count - 1, Math.max(0, Math.floor(elapsed / flowerDwell)));
+    var next = (index + 1) % count;
+    var along = (elapsed % flowerDwell) / flowerDwell;
+    var t = along < 0.42 ? 0 : flowerEase((along - 0.42) / 0.58);
+    var from = flowerStops[index];
+    var to = flowerStops[next];
+    var channels = [0, 1, 2].map(function (i) {
+      return Math.round(from[i] + (to[i] - from[i]) * t);
+    });
+    document.documentElement.style.setProperty(
+      "--eco-flower",
+      "rgb(" + channels[0] + "," + channels[1] + "," + channels[2] + ")"
+    );
   }
-  function paintMark(now) {
-    var elapsed = (now - markStarted) % markCycle;
-    var position = elapsed % markSegment;
-    var index = Math.floor(elapsed / markSegment);
-    var opacity;
-
-    setMarkPalette(index);
-    if (position < 500) opacity = markEase(position / 500);
-    else if (position < 2500) opacity = 1;
-    else if (position < markColourTime) opacity = 1 - markEase((position - 2500) / 500);
-    else opacity = 0;
-
-    colourLayer.style.opacity = opacity.toFixed(3);
-    lightField.setAttribute("transform", "rotate(" + (((now - markStarted) % markTurn) / markTurn * 360).toFixed(3) + ")");
-  }
-  function tickMark(now) {
-    if (!markVisible || document.hidden) { markFrame = 0; return; }
-    paintMark(now);
-    if (!markReduced.matches) markFrame = requestAnimationFrame(tickMark);
-    else markFrame = 0;
-  }
-  function startMark() {
-    if (markReduced.matches) {
-      colourLayer.style.opacity = "0";
-      lightField.setAttribute("transform", "rotate(0)");
-      markFrame = 0;
-    } else if (!markFrame) {
-      markFrame = requestAnimationFrame(tickMark);
+  function tickFlower(now) {
+    if (document.hidden || flowerReduced.matches) {
+      flowerFrame = 0;
+      return;
     }
+    paintFlower(now);
+    flowerFrame = requestAnimationFrame(tickFlower);
   }
-  if ("IntersectionObserver" in window) {
-    new IntersectionObserver(function (entries) {
-      markVisible = entries[0].isIntersecting;
-      if (markVisible) startMark();
-    }).observe(mark);
+  function startFlower() {
+    if (flowerReduced.matches) {
+      document.documentElement.style.setProperty("--eco-flower", "#f5f5f7");
+      if (flowerFrame) cancelAnimationFrame(flowerFrame);
+      flowerFrame = 0;
+      return;
+    }
+    if (!flowerFrame) flowerFrame = requestAnimationFrame(tickFlower);
   }
   addEventListener("visibilitychange", function () {
-    if (!document.hidden) startMark();
+    if (!document.hidden) startFlower();
   });
-  if (markReduced.addEventListener) markReduced.addEventListener("change", startMark);
-  else markReduced.addListener(startMark);
-  startMark();
+  if (flowerReduced.addEventListener) flowerReduced.addEventListener("change", startFlower);
+  else flowerReduced.addListener(startFlower);
+  startFlower();
 })();
