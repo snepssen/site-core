@@ -31,3 +31,11 @@ pushed here reaches every page within a day even when nobody runs `sync.sh`.
 A project whose `docs/` has uncommitted changes is skipped and named, so
 nobody's work in progress is swept into a sync. Fonts and each page's own
 `style.css` and `page.py` are the project's, and stay there.
+
+## Licence
+
+MIT, copyright 2026 snepssen. See [LICENSE](LICENSE).
+
+The mark is Flower of Life geometry adapted from Pd4u's [CC0 Wikimedia SVG](https://commons.wikimedia.org/wiki/File:Flower_of_Life_SVG.svg).
+
+Pages generated into other repositories' `docs/` follow those repositories' own licences. MIT permits that.
