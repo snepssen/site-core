@@ -1,0 +1,89 @@
+name: update dependency
+
+# Called from each app that builds on a workshop -core (voice-core,
+# speech-core), daily and on demand. It moves the app to the newest release of
+# each package it names, runs that app's own checks, and commits and pushes the
+# new Package.resolved only if they pass: the auto-merge, with each app's own
+# token, so no core needs a secret. Several packages named together are
+# updated in one run and one commit, so two bumps never race for the same
+# Package.resolved. A run started by hand always runs the checks, even with
+# nothing to update, so the pipeline can be verified.
+on:
+  workflow_call:
+    inputs:
+      packages:
+        description: the packages to update, by identity, separated by spaces (voice-core speech-core)
+        type: string
+        required: true
+      package-path:
+        description: the folder holding the app's Package.swift
+        type: string
+        default: "."
+      checks:
+        description: the app's checks, run in package-path
+        type: string
+        required: true
+      prepare:
+        description: anything the checks need first, run at the repository root
+        type: string
+        default: ""
+      always-check:
+        type: boolean
+        default: false
+      runner:
+        type: string
+        default: macos-latest
+
+permissions:
+  contents: write
+
+jobs:
+  update:
+    runs-on: ${{ inputs.runner }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Toolchain
+        run: swift --version
+      - name: Newest ${{ inputs.packages }}
+        id: resolve
+        working-directory: ${{ inputs.package-path }}
+        env:
+          PACKAGES: ${{ inputs.packages }}
+        run: |
+          versions() {
+            python3 -c '
+          import json, sys
+          pins = {p["identity"]: p["state"].get("version") for p in json.load(open("Package.resolved"))["pins"]}
+          print(", ".join(f"{name} {pins.get(name)}" for name in sys.argv[1:]))' $PACKAGES
+          }
+          before=$(versions)
+          swift package update $PACKAGES
+          after=$(versions)
+          if git diff --quiet -- Package.resolved; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"; echo "already on the newest: $after"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+            echo "message=$after" >> "$GITHUB_OUTPUT"
+            echo "from $before"; echo "to   $after"
+          fi
+      - name: Prepare
+        if: (steps.resolve.outputs.changed == 'true' || inputs.always-check) && inputs.prepare != ''
+        run: ${{ inputs.prepare }}
+      - name: The app's checks
+        if: steps.resolve.outputs.changed == 'true' || inputs.always-check
+        working-directory: ${{ inputs.package-path }}
+        run: ${{ inputs.checks }}
+      - name: Commit and push
+        if: steps.resolve.outputs.changed == 'true'
+        working-directory: ${{ inputs.package-path }}
+        env:
+          MESSAGE: ${{ steps.resolve.outputs.message }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add Package.resolved
+          git commit -q -m "$MESSAGE"
+          # The daily page sync pushes here too; take its commit rather than fail.
+          git pull -q --rebase origin "$GITHUB_REF_NAME"
+          git push -q origin HEAD
+          echo "updated to $MESSAGE, checks passed, pushed"
