@@ -61,8 +61,13 @@ jobs:
           BUILD: ${{ steps.build.outcome }}
           CHECK: ${{ steps.check.outcome }}
         run: |
-          # The first error the compiler reported, or the check's last line.
-          first_error() { grep -m1 -E 'error:' "$1" 2>/dev/null | sed -E 's|.*/([^/]+:[0-9]+:[0-9]+:)|\1|' | cut -c1-160; }
+          # The first error the compiler reported in a source file, else the
+          # first error of any kind; colour codes removed, path shortened.
+          first_error() {
+            plain=$(sed -E 's/\x1b\[[0-9;]*m//g' "$1" 2>/dev/null)
+            line=$(grep -m1 -E '\.swift:[0-9]+:[0-9]+: error:' <<< "$plain" || grep -m1 -E 'error:' <<< "$plain")
+            sed -E 's|.*/(Sources/)|\1|' <<< "$line" | cut -c1-160
+          }
           if [ "$BUILD" != success ]; then note=$(first_error "$RUNNER_TEMP/build.log")
           elif [ "$CHECK" != success ]; then note=$(first_error "$RUNNER_TEMP/check.log"); note=${note:-$(tail -1 "$RUNNER_TEMP/check.log")}
           else note=$(tail -1 "$RUNNER_TEMP/check.log" | cut -c1-160); fi
