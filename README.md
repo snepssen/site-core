@@ -65,6 +65,11 @@ cores it `uses`, and its `checks`.
     ./workshop release speech-core 0.6.0    # test, tag, push; then update, check and push every app that uses it
     ./workshop release voice-core 1.0.5 --dry-run
 
+A Swift app's entry also names its `core` (the non-UI target) and its `check`
+executable. `.github/workflows/linux-cores.yml` builds each Core on Ubuntu and
+runs its check, weekly and on demand, and writes one table of what compiles:
+informational, so a Core that does not build is a finding, not a red run.
+
 `voice-core/scripts/release.sh` and `speech-core/scripts/release.sh` call
 `workshop release`. Adding an app, or a core to an app, is its entry here and
 the `packages` line of its `dependencies.yml`; `workshop check` says when the

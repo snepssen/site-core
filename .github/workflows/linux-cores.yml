@@ -10,8 +10,6 @@ on:
   schedule:
     - cron: "41 6 * * 1"
   workflow_dispatch:
-  push:
-    branches: [claude/linux-cores]
 
 permissions:
   contents: read
