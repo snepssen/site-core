@@ -6,7 +6,7 @@ the project network every page carries.
 | | |
 |---|---|
 | `build.py` | builds a project's `docs/index.html` from its `docs/page.py`: the chrome is generated, the content is data |
-| `ecosystem.json` | the projects: name, page, platforms, blurb, accent, and, where one piece is made from another, its relationships. Adding a project is one entry here, and its accent in `ecosystem.css` |
+| `ecosystem.json` | the projects: name, page, where each runs (`support`: per system, `runs`, `tested` (CI passes there, not used by hand) or `untested`; the card's platform line and the contact card's untested sentence are written from it), blurb, accent, and, where one piece is made from another, its relationships. Adding a project is one entry here, and its accent in `ecosystem.css` |
 | `ecosystem.css`, `ecosystem.js` | the project rail, the progress bar and the network grid |
 
 They were kept byte-identical across eight repositories by hand. This is their
