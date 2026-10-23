@@ -198,9 +198,15 @@ def section_links(page, ecosystem):
     """
     if not page:
         return ""
-    items = [(section["id"], section["jump"])
-             for section in page["sections"]
-             if section.get("jump") and section.get("id")]
+    items, anchor = [], fold_anchor(page)
+    for section in page["sections"]:
+        if section is anchor:
+            copy = folds_copy(page)
+            items.append((copy["id"], copy["jump"]))
+        elif section.get("fold") or section.get("folds"):
+            continue
+        elif section.get("jump") and section.get("id"):
+            items.append((section["id"], section["jump"]))
     if project_relationships(ecosystem, page["meta"]["slug"]):
         items.append(("with", "Beside it"))
     items.append(("contact", "Contact"))
@@ -294,12 +300,13 @@ def support(project):
                  for state in SUPPORT_STATES)
 
 
-def platforms(project):
-    """The line under a card's index: where it runs, then where it is untested."""
+def platforms(project, stack=True):
+    """The line under a card's index: where it runs, then where it is untested.
+    `stack=False` leaves out the language, for a line that already names it."""
     if "support" not in project:
         return project["platforms"]
     runs, tested, untested = support(project)
-    line = " · ".join(([project["stack"]] if project.get("stack") else []) + runs)
+    line = " · ".join(([project["stack"]] if stack and project.get("stack") else []) + runs)
     if tested:
         line += " · tested on " + ", ".join(tested)
     if untested:
@@ -471,6 +478,16 @@ def figure(item):
   </figure>"""
 
 
+def badge(page, ecosystem):
+    """The line above the name: where it runs, from the support table, and the
+    licence. A page whose project has no table keeps the badge it wrote."""
+    meta = page["meta"]
+    project = next(p for p in ecosystem["projects"] if p["slug"] == meta["slug"])
+    if "support" in project and meta.get("license"):
+        return f"{platforms(project)} · {meta['license']}"
+    return meta["badge"]
+
+
 def header(page, ecosystem):
     meta = page["meta"]
     stats = "\n".join(f"    <span>{stat}</span>" for stat in meta["stats"])
@@ -480,7 +497,7 @@ def header(page, ecosystem):
     return f"""
 <div class="wrap">
 <header id="top" class="mast">
-  <span class="badge"><span class="dot"></span>{meta['badge']}</span>
+  <span class="badge"><span class="dot"></span>{badge(page, ecosystem)}</span>
   <h1>{meta['name']}</h1>
 {extra}  <p class="subhead">{meta['subhead']}</p>
   <div class="headmeta">
@@ -500,11 +517,63 @@ def partial(name):
     return path.read_text(encoding="utf-8").rstrip("\n")
 
 
-def section(item):
+def section_blocks(item):
     if item.get("body"):
-        blocks = partial(item["body"])
-    else:
-        blocks = "\n".join(block(b) for b in item["blocks"])
+        return partial(item["body"])
+    return "\n".join(block(b) for b in item["blocks"])
+
+
+# A page leads with what the thing is and how to get it; the long explanations
+# are kept, word for word, but folded. A section marked `fold` shows its
+# heading and its one-line `teaser`, and opens to everything else. Folded
+# sections are gathered into one group, with one entry in the jump navigation,
+# so a long page does not need a long nav. The group stands where a
+# `{"folds": True}` marker does, or else where the first folded section does,
+# so a page can keep its sections in reading order and still put the group
+# after the part that says how to get it.
+FOLDS = {"id": "in-depth", "jump": "How it works", "eyebrow": "In depth",
+         "heading": "How it works"}
+
+
+def folds_copy(page):
+    return {**FOLDS, **page["meta"].get("folds", {})}
+
+
+def fold_anchor(page):
+    """The item the group is drawn in place of: the marker, or the first fold."""
+    items = page["sections"]
+    return next((item for item in items if item.get("folds")),
+                next((item for item in items if item.get("fold")), None))
+
+
+def folded(item):
+    teaser = (f'<span class="fold__teaser">{item["teaser"]}</span>'
+              if item.get("teaser") else "")
+    return f"""  <details class="fold" id="{item['id']}">
+    <summary><span class="fold__title">{item['heading']}</span>{teaser}</summary>
+    <div class="fold__body">
+{section_blocks(item)}
+    </div>
+  </details>"""
+
+
+def fold_group(page, items):
+    copy = folds_copy(page)
+    if any(item.get("id") == copy["id"] for item in page["sections"]):
+        raise SystemExit(f"a section already has the id {copy['id']!r}; "
+                         f"give the group another in meta['folds']['id']")
+    inner = "\n".join(folded(item) for item in items)
+    return f"""
+<section id="{copy['id']}" class="folds">
+  <p class="eyebrow">{copy['eyebrow']}</p>
+  <h2>{copy['heading']}</h2>
+{inner}
+</section>
+"""
+
+
+def section(item):
+    blocks = section_blocks(item)
     identifier = f' id="{item["id"]}"' if item.get("id") else ""
     identifier += f' {item["attrs"]}' if item.get("attrs") else ""
     eyebrow = (f'  <p class="eyebrow">{item["eyebrow"]}</p>\n'
@@ -589,7 +658,13 @@ def render():
     parts = [head(page, ecosystem), rail(ecosystem, slug, page), header(page, ecosystem)]
     placed = False
     beside = relationships(ecosystem, slug)
+    folds = [item for item in page["sections"] if item.get("fold")]
+    anchor = fold_anchor(page)
     for item in page["sections"]:
+        if item is anchor and folds:  # the folded sections, gathered here
+            parts.append(fold_group(page, folds))
+        if item.get("fold") or item.get("folds"):
+            continue
         if item.get("grid"):          # the ecosystem grid, in its place
             if beside:
                 parts.append(beside)
