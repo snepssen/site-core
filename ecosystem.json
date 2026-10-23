@@ -80,8 +80,8 @@
       "index": "VIDEO",
       "support": {
         "macOS": "runs",
-        "Linux": "untested",
-        "Windows": "untested"
+        "Linux": "tested",
+        "Windows": "tested"
       },
       "glyph": "◤ w ◥",
       "blurb": "Karaoke and narration video with a vector visor face that mouths every word.",
@@ -95,8 +95,8 @@
       "index": "DELIVERY",
       "support": {
         "macOS": "runs",
-        "Linux": "untested",
-        "Windows": "untested"
+        "Linux": "tested",
+        "Windows": "tested"
       },
       "glyph": "✓ ≤ -3 dB",
       "blurb": "Check a finished file against where it is going, and correct it without touching the original.",
@@ -110,7 +110,7 @@
       "index": "INTAKE",
       "support": {
         "macOS": "runs",
-        "Linux": "untested",
+        "Linux": "tested",
         "Windows": "untested"
       },
       "glyph": "webm ⟶ mp3",
@@ -126,7 +126,7 @@
       "support": {
         "macOS": "runs",
         "Linux": "runs",
-        "Windows": "untested"
+        "Windows": "tested"
       },
       "glyph": "↓ Downloads → ∅",
       "blurb": "Empty the Downloads funnel into structure the folder taught it, and undo any of it.",
@@ -245,7 +245,7 @@
       "support": {
         "macOS": "runs",
         "iOS": "runs",
-        "Linux": "untested"
+        "Linux": "tested"
       },
       "glyph": "text → /ipa/ → ids",
       "blurb": "The speech engine the apps share: espeak-ng, the phonemizer and Piper inference, from one source.",

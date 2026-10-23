@@ -274,34 +274,41 @@ def reindent(text, spaces):
 # string each, and it said "macOS · Windows · Linux" for four projects that had
 # been run on a Mac and only tested elsewhere by CI, and "macOS · iPhone" for
 # an Interpreter that also runs on an iPad. A project's `support` says, per
-# system, "runs" (somebody has used it there) or "untested" (it is built for
-# that system and nobody has run it there yet); the card and the contact
+# system, "runs" (somebody has used it there), "tested" (its automated tests
+# pass there in CI, and nobody has used it there by hand) or "untested" (it is
+# built for that system and neither has happened yet); the card and the contact
 # card are written from that. A project with no `support`, such as the hub,
 # keeps its own `platforms` line, which describes a stack rather than systems.
 PLATFORM_ORDER = ("macOS", "iPhone", "iPad", "iOS", "Linux", "Windows", "Android")
-SUPPORT_STATES = ("runs", "untested")
+SUPPORT_STATES = ("runs", "tested", "untested")
 
 
 def support(project):
-    """(systems it runs on, systems it is untested on), in PLATFORM_ORDER."""
+    """(runs, tested, untested): the systems in each state, in PLATFORM_ORDER."""
     table = project.get("support") or {}
     for system, state in table.items():
         if system not in PLATFORM_ORDER or state not in SUPPORT_STATES:
             raise SystemExit(f"{project['slug']}: support has {system!r}: {state!r}; "
                              f"systems are {', '.join(PLATFORM_ORDER)}, states {', '.join(SUPPORT_STATES)}")
-    return ([s for s in PLATFORM_ORDER if table.get(s) == "runs"],
-            [s for s in PLATFORM_ORDER if table.get(s) == "untested"])
+    return tuple([s for s in PLATFORM_ORDER if table.get(s) == state]
+                 for state in SUPPORT_STATES)
 
 
 def platforms(project):
     """The line under a card's index: where it runs, then where it is untested."""
     if "support" not in project:
         return project["platforms"]
-    runs, untested = support(project)
+    runs, tested, untested = support(project)
     line = " · ".join(([project["stack"]] if project.get("stack") else []) + runs)
+    if tested:
+        line += " · tested on " + ", ".join(tested)
     if untested:
         line += " · untested: " + ", ".join(untested)
     return line
+
+
+def both(names):
+    return names[0] if len(names) == 1 else ", ".join(names[:-1]) + " and " + names[-1]
 
 
 def either(names):
@@ -392,11 +399,17 @@ def contact_inner(page, ecosystem):
     rows = "\n".join(
         f'    <a href="{link["href"]}">{link["label"]}'
         f'<span>{link["detail"]} ↗</span></a>' for link in links)
-    # An untested system is offered, so the page says plainly that nobody has
-    # run it there yet and that hearing how it went is the point.
-    untested = support(project)[1]
-    untried = (f"\n  <p>{project['name']} has not been run on {either(untested)} yet. "
-               f"If you try it there, say what happened, working or not.</p>") if untested else ""
+    # A system nobody has used it on is still offered, so the page says so
+    # plainly, and that hearing how it went is the point.
+    _, tested, untested = support(project)
+    said = []
+    if tested:
+        said.append(f"Its tests pass on {both(tested)}, but nobody has used it there by hand yet.")
+    if untested:
+        said.append(f"It has not been run on {either(untested)} yet.")
+    them = "it" if len(tested + untested) == 1 else "one of them"
+    untried = (f"\n  <p>{' '.join(said)} If you use it on {them}, say what happened, "
+               f"working or not.</p>") if said else ""
     return f"""  <p class="eyebrow">{copy['eyebrow']}</p>
   <h2>{copy['heading']}</h2>
   <p>{meta.get('contact_note') or copy['note']}</p>{untried}
