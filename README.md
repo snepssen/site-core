@@ -32,6 +32,28 @@ A project whose `docs/` has uncommitted changes is skipped and named, so
 nobody's work in progress is swept into a sync. Fonts and each page's own
 `style.css` and `page.py` are the project's, and stay there.
 
+## Dependency updates
+
+`.github/workflows/update-dependency.yml` is the other reusable workflow here,
+for apps rather than pages. An app's `.github/workflows/dependencies.yml` runs
+it once a day (or on demand) with the workshop -cores it builds on, by package
+identity, and its own checks:
+
+```yaml
+uses: snepssen/site-core/.github/workflows/update-dependency.yml@main
+with:
+  packages: voice-core speech-core
+  package-path: apple
+  checks: swift run -q tccheck && swift test
+```
+
+It moves each named package to its newest release, runs the checks, and
+commits and pushes the new `Package.resolved` only if they pass, as
+`voice-core 1.0.5, speech-core 0.5.1`. The packages an app names are updated
+together, in one run and one commit, so two updates never race for the same
+file. A run started by hand always runs the checks, even with nothing to
+update. A core needs no secret: each app updates itself with its own token.
+
 ## Licence
 
 MIT, copyright 2026 snepssen. See [LICENSE](LICENSE).
