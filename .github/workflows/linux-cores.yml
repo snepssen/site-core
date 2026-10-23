@@ -1,0 +1,102 @@
+name: linux cores
+
+# The Swift-on-Linux experiment: does each app's non-UI Core build on Linux,
+# and does its check pass there? Every Swift app in ecosystem.json names its
+# Core target and its check executable; this builds the one and runs the
+# other on Ubuntu, weekly and on demand, and writes one table of the results.
+# It is informational: a Core that fails is a finding, not a red build. The
+# table is what decides which native Linux shells are within reach.
+on:
+  schedule:
+    - cron: "41 6 * * 1"
+  workflow_dispatch:
+  push:
+    branches: [claude/linux-cores]
+
+permissions:
+  contents: read
+
+jobs:
+  apps:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.list.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: list
+        run: |
+          python3 -c '
+          import json
+          apps = [{"slug": p["slug"], "package": p["swift"]["package"], "core": p["swift"]["core"], "check": p["swift"]["check"]}
+                  for p in json.load(open("ecosystem.json"))["projects"] if "swift" in p]
+          print("matrix=" + json.dumps({"include": apps}))' >> "$GITHUB_OUTPUT"
+
+  core:
+    needs: apps
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.apps.outputs.matrix) }}
+    name: ${{ matrix.slug }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: snepssen/${{ matrix.slug }}
+      - name: Toolchain
+        run: swift --version 2>&1 | head -1 | tee toolchain.txt
+      - name: Build ${{ matrix.core }}
+        id: build
+        continue-on-error: true
+        working-directory: ${{ matrix.package }}
+        run: swift build --target "${{ matrix.core }}" 2>&1 | tee "$RUNNER_TEMP/build.log"; exit "${PIPESTATUS[0]}"
+      - name: Run ${{ matrix.check }}
+        id: check
+        if: steps.build.outcome == 'success'
+        continue-on-error: true
+        working-directory: ${{ matrix.package }}
+        run: swift run "${{ matrix.check }}" 2>&1 | tee "$RUNNER_TEMP/check.log"; exit "${PIPESTATUS[0]}"
+      - name: Record
+        if: always()
+        env:
+          BUILD: ${{ steps.build.outcome }}
+          CHECK: ${{ steps.check.outcome }}
+        run: |
+          # The first error the compiler reported, or the check's last line.
+          first_error() { grep -m1 -E 'error:' "$1" 2>/dev/null | sed -E 's|.*/([^/]+:[0-9]+:[0-9]+:)|\1|' | cut -c1-160; }
+          if [ "$BUILD" != success ]; then note=$(first_error "$RUNNER_TEMP/build.log")
+          elif [ "$CHECK" != success ]; then note=$(first_error "$RUNNER_TEMP/check.log"); note=${note:-$(tail -1 "$RUNNER_TEMP/check.log")}
+          else note=$(tail -1 "$RUNNER_TEMP/check.log" | cut -c1-160); fi
+          mkdir -p result
+          python3 -c '
+          import json, sys
+          slug, core, check, build, ran, note, toolchain = sys.argv[1:]
+          json.dump({"slug": slug, "core": core, "check": check, "build": build, "ran": ran or "skipped",
+                     "note": note, "toolchain": toolchain}, open("result/result.json", "w"))' \
+            "${{ matrix.slug }}" "${{ matrix.core }}" "${{ matrix.check }}" "$BUILD" "$CHECK" "$note" "$(cat toolchain.txt)"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: linux-core-${{ matrix.slug }}
+          path: result/result.json
+
+  table:
+    needs: core
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: linux-core-*
+          path: results
+      - name: Table
+        run: |
+          python3 -c '
+          import json, pathlib
+          rows = [json.loads(p.read_text()) for p in sorted(pathlib.Path("results").glob("*/result.json"))]
+          mark = {"success": "yes", "failure": "no", "skipped": "-"}
+          lines = ["## Swift Cores on Linux", "", (rows[0]["toolchain"] if rows else ""), "",
+                   "| App | Core builds | Check passes | Note |", "|---|---|---|---|"]
+          for r in rows:
+              r = dict(r, build=mark.get(r["build"], r["build"]), ran=mark.get(r["ran"], r["ran"]), note=r["note"].replace("|", "/"))
+              lines.append("| {slug} | {core}: {build} | {check}: {ran} | {note} |".format(**r))
+          print("\n".join(lines))' | tee -a "$GITHUB_STEP_SUMMARY"

@@ -42,7 +42,9 @@
         "uses": [
           "voice-core"
         ],
-        "checks": "swift run -q gfcheck && diff -rq .build/checkouts/voice-core/Sources/VoiceCore/Resources/espeak-ng-data Sources/GatewayTTS/Resources/espeak-ng-data"
+        "checks": "swift run -q gfcheck && diff -rq .build/checkouts/voice-core/Sources/VoiceCore/Resources/espeak-ng-data Sources/GatewayTTS/Resources/espeak-ng-data",
+        "core": "GatewayCore",
+        "check": "gfcheck"
       }
     },
     {
@@ -60,7 +62,9 @@
         "uses": [
           "voice-core"
         ],
-        "checks": "swift run -q vfcheck && ../scripts/check-shared-assets.sh"
+        "checks": "swift run -q vfcheck && ../scripts/check-shared-assets.sh",
+        "core": "VoiceForgeCore",
+        "check": "vfcheck"
       }
     },
     {
@@ -123,7 +127,9 @@
           "voice-core",
           "speech-core"
         ],
-        "checks": "swift run -q tccheck && swift test"
+        "checks": "swift run -q tccheck && swift test",
+        "core": "InterpreterCore",
+        "check": "tccheck"
       },
       "relationships": [
         {
@@ -148,7 +154,9 @@
           "voice-core",
           "speech-core"
         ],
-        "checks": "swift run -q cccheck"
+        "checks": "swift run -q cccheck",
+        "core": "CompanionCore",
+        "check": "cccheck"
       },
       "relationships": [
         {
