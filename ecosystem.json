@@ -36,7 +36,14 @@
       "glyph": "F10 ── F27",
       "blurb": "Assemble guided sessions and keep published maps beside what was actually found.",
       "repo": "https://github.com/snepssen/gateway-forge",
-      "accent": "--eco-gateway"
+      "accent": "--eco-gateway",
+      "swift": {
+        "package": ".",
+        "uses": [
+          "voice-core"
+        ],
+        "checks": "swift run -q gfcheck && diff -rq .build/checkouts/voice-core/Sources/VoiceCore/Resources/espeak-ng-data Sources/GatewayTTS/Resources/espeak-ng-data"
+      }
     },
     {
       "slug": "voice-forge",
@@ -47,7 +54,14 @@
       "glyph": "⌁ / həˈləʊ /",
       "blurb": "A transparent Piper workbench for timing, pronunciation, and honest audio export.",
       "repo": "https://github.com/snepssen/voice-forge",
-      "accent": "--eco-voice"
+      "accent": "--eco-voice",
+      "swift": {
+        "package": "macos",
+        "uses": [
+          "voice-core"
+        ],
+        "checks": "swift run -q vfcheck && ../scripts/check-shared-assets.sh"
+      }
     },
     {
       "slug": "protoke",
@@ -103,10 +117,18 @@
       "blurb": "Hear the table in English a few seconds behind, cut at the end of each thought, on your own phone.",
       "repo": "https://github.com/snepssen/interpreter-forge",
       "accent": "--eco-interpreter",
+      "swift": {
+        "package": "apple",
+        "uses": [
+          "voice-core",
+          "speech-core"
+        ],
+        "checks": "swift run -q tccheck && swift test"
+      },
       "relationships": [
         {
           "slug": "speech-core",
-          "text": "Takes ObjCExceptions, SileroVAD, SampleBuffer and ModelStore from {name}, at 0.4.0."
+          "text": "Takes ObjCExceptions, SileroVAD, SampleBuffer, ModelStore and PromptCache from {name}, at 0.5.0."
         }
       ]
     },
@@ -120,6 +142,14 @@
       "blurb": "A local voice companion for Mac, iPhone and iPad, with a protogen LED-visor face.",
       "repo": "https://github.com/snepssen/companion-forge",
       "accent": "--eco-companion",
+      "swift": {
+        "package": ".",
+        "uses": [
+          "voice-core",
+          "speech-core"
+        ],
+        "checks": "swift run -q cccheck"
+      },
       "relationships": [
         {
           "slug": "voice-core",
@@ -131,11 +161,11 @@
         },
         {
           "slug": "speech-core",
-          "text": "Takes ObjCExceptions, SileroVAD, SampleBuffer and ModelStore from {name}, at 0.4.0."
+          "text": "Takes ObjCExceptions, SileroVAD, SampleBuffer, ModelStore and PromptCache from {name}, at 0.5.0."
         },
         {
           "slug": "interpreter-forge",
-          "text": "Reuses {name}'s PromptCache, copied with small changes, which is planned for speech-core 0.5.0."
+          "text": "Reuses {name}'s Voice, copied with small changes."
         },
         {
           "slug": "protoke",
