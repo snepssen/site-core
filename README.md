@@ -54,6 +54,22 @@ together, in one run and one commit, so two updates never race for the same
 file. A run started by hand always runs the checks, even with nothing to
 update. A core needs no secret: each app updates itself with its own token.
 
+## The workshop script
+
+`ecosystem.json` is also the list of which app builds on which core. A Swift
+app's entry has a `swift` block: the folder holding its `Package.swift`, the
+cores it `uses`, and its `checks`.
+
+    ./workshop status                       # every folder beside this one, and the core versions each app resolves
+    ./workshop check                        # each app's Package.swift and dependencies.yml match ecosystem.json
+    ./workshop release speech-core 0.6.0    # test, tag, push; then update, check and push every app that uses it
+    ./workshop release voice-core 1.0.5 --dry-run
+
+`voice-core/scripts/release.sh` and `speech-core/scripts/release.sh` call
+`workshop release`. Adding an app, or a core to an app, is its entry here and
+the `packages` line of its `dependencies.yml`; `workshop check` says when the
+two disagree.
+
 ## Licence
 
 MIT, copyright 2026 snepssen. See [LICENSE](LICENSE).

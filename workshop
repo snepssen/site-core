@@ -1,0 +1,182 @@
+#!/usr/bin/env python3
+"""The workshop's repositories, from the folder they sit in together.
+
+    ./workshop status            every folder beside this one: branch, commit,
+                                 uncommitted files, and for each Swift app the
+                                 version of each -core it resolves
+    ./workshop check             each Swift app's Package.swift and
+                                 dependencies.yml name the cores ecosystem.json
+                                 says it uses
+    ./workshop release <core> <version> [--dry-run]
+                                 test, tag and push a -core, then in each app
+                                 checked out beside it that uses that core:
+                                 update, run the app's checks, and commit and
+                                 push the new Package.resolved only if they pass
+
+ecosystem.json is the one list. A Swift app's entry carries a "swift" block:
+the folder holding its Package.swift, the cores it uses, and its checks. Adding
+an app is that entry; nothing here names one. Plain Python, no dependencies.
+"""
+import json
+import re
+import subprocess
+import sys
+import tempfile
+from pathlib import Path
+
+HERE = Path(__file__).resolve().parent
+ROOT = HERE.parent
+PROJECTS = json.loads((HERE / "ecosystem.json").read_text(encoding="utf-8"))["projects"]
+APPS = {p["slug"]: p["swift"] for p in PROJECTS if "swift" in p}
+CORES = sorted({core for app in APPS.values() for core in app["uses"]})
+
+
+def git(repo, *args, check=True):
+    result = subprocess.run(["git", "-C", str(repo), *args], capture_output=True, text=True)
+    if check and result.returncode:
+        raise SystemExit(f"git {' '.join(args)} in {repo.name}: {result.stderr.strip()}")
+    return result.stdout.strip()
+
+
+def resolved(app):
+    """The version of each core the app's Package.resolved pins, or None."""
+    lock = ROOT / app / APPS[app]["package"] / "Package.resolved"
+    if not lock.exists():
+        return {}
+    pins = json.loads(lock.read_text())["pins"]
+    return {p["identity"]: p["state"].get("version") for p in pins}
+
+
+def newest_tag(core):
+    """The highest version tag in the core's checkout, as last fetched."""
+    if not (ROOT / core / ".git").exists():
+        return None
+    tags = [t for t in git(ROOT / core, "tag").split() if re.fullmatch(r"\d+\.\d+\.\d+", t)]
+    return max(tags, key=lambda t: tuple(map(int, t.split("."))), default=None)
+
+
+def status():
+    newest = {core: newest_tag(core) for core in CORES}
+    for folder in sorted(ROOT.iterdir(), key=lambda p: p.name.lower()):
+        if not folder.is_dir() or folder.name.startswith("."):
+            continue
+        if not (folder / ".git").exists():
+            print(f"{folder.name:<18} not a repo")
+            continue
+        branch = git(folder, "branch", "--show-current") or "(detached)"
+        dirty = len(git(folder, "status", "--porcelain").splitlines())
+        line = f"{folder.name:<18} {git(folder, 'rev-parse', '--short', 'HEAD')}  {branch}"
+        line += f"  {dirty} uncommitted" if dirty else ""
+        if folder.name in APPS:
+            pins = resolved(folder.name)
+            parts = []
+            for core in APPS[folder.name]["uses"]:
+                have = pins.get(core)
+                behind = newest[core] and have != newest[core]
+                parts.append(f"{core} {have}" + (f" (newest {newest[core]})" if behind else ""))
+            line += "  " + ", ".join(parts)
+        print(line)
+    print("versions as of each checkout's last fetch")
+
+
+def check():
+    problems = []
+    for app, swift in APPS.items():
+        repo = ROOT / app
+        if not repo.exists():
+            print(f"-- {app}: not checked out beside site-core")
+            continue
+        manifest = repo / swift["package"] / "Package.swift"
+        if not manifest.exists():
+            problems.append(f"{app}: no Package.swift in {swift['package']}")
+            continue
+        text = manifest.read_text()
+        for core in swift["uses"]:
+            if f"snepssen/{core}" not in text:
+                problems.append(f"{app}: Package.swift does not depend on {core}")
+        workflow = repo / ".github/workflows/dependencies.yml"
+        named = re.search(r"^\s*packages:\s*(.+)$", workflow.read_text(), re.M) if workflow.exists() else None
+        if not named:
+            problems.append(f"{app}: no packages line in .github/workflows/dependencies.yml")
+        elif sorted(named.group(1).split()) != sorted(swift["uses"]):
+            problems.append(f"{app}: dependencies.yml updates {named.group(1).strip()}, "
+                            f"ecosystem.json says {' '.join(swift['uses'])}")
+    for problem in problems:
+        print(problem, file=sys.stderr)
+    if problems:
+        raise SystemExit(1)
+    print(f"{len(APPS)} Swift apps: Package.swift and dependencies.yml match ecosystem.json")
+
+
+def release(core, version, dry_run):
+    if core not in CORES:
+        raise SystemExit(f"no app uses {core}; cores: {', '.join(CORES)}")
+    if not re.fullmatch(r"\d+\.\d+\.\d+", version):
+        raise SystemExit(f"not a version: {version}")
+    here = ROOT / core
+    users = [app for app, swift in APPS.items() if core in swift["uses"]]
+    if dry_run:
+        print(f"would test, tag and push {core} {version}, then update:")
+        for app in users:
+            where = "" if (ROOT / app).exists() else "  (not checked out: its daily workflow will)"
+            print(f"   {app}: {APPS[app]['checks']}{where}")
+        return
+    if git(here, "branch", "--show-current") != "main":
+        raise SystemExit(f"{core} is not on main")
+    if git(here, "status", "--porcelain"):
+        raise SystemExit(f"uncommitted changes in {core}")
+    if git(here, "tag", "-l", version):
+        raise SystemExit(f"{core} {version} already exists")
+    subprocess.run(["swift", "test"], cwd=here, check=True)
+    git(here, "tag", "-a", version, "-m", f"{core} {version}")
+    git(here, "push", "-q", "origin", "HEAD", version)
+    print(f"released {core} {version}")
+
+    logs = Path(tempfile.mkdtemp(prefix=f"{core}-{version}-"))
+    failed = []
+    for app in users:
+        repo, swift = ROOT / app, APPS[app]
+        if not repo.exists():
+            print(f"-- {app}: not checked out; its daily dependencies workflow will update it")
+            continue
+        print(f"== {app}")
+        lock = f"{swift['package']}/Package.resolved".removeprefix("./")
+        # GitHub Actions bumps apps too (dependencies.yml): start from its latest.
+        if subprocess.run(["git", "-C", str(repo), "pull", "-q", "--ff-only"]).returncode:
+            print("   could not fast-forward; skipped")
+            failed.append(app)
+            continue
+        package = repo / swift["package"]
+        subprocess.run(["swift", "package", "update", core], cwd=package, check=True, capture_output=True)
+        if not git(repo, "status", "--porcelain", "--", lock):
+            print(f"   already on the newest {core}")
+            continue
+        log = logs / f"{app}.log"
+        with log.open("w") as out:
+            passed = subprocess.run(swift["checks"], shell=True, cwd=package, stdout=out, stderr=out).returncode == 0
+        if passed:
+            git(repo, "add", lock)
+            git(repo, "commit", "-q", "-m", f"{core} {version}")
+            git(repo, "push", "-q", "origin", "HEAD")
+            print(f"   updated to {version}, checks passed, pushed")
+        else:
+            git(repo, "checkout", "--", lock)
+            print(f"   checks FAILED on {version}; left on its previous version (log: {log})")
+            failed.append(app)
+    if failed:
+        raise SystemExit(f"not updated: {' '.join(failed)}")
+
+
+def main(args):
+    if args[:1] == ["status"]:
+        status()
+    elif args[:1] == ["check"]:
+        check()
+    elif args[:1] == ["release"] and len(args) in (3, 4) and args[3:] in ([], ["--dry-run"]):
+        release(args[1], args[2], dry_run=args[3:] == ["--dry-run"])
+    else:
+        raise SystemExit(__doc__.split("\n\n")[1])
+
+
+if __name__ == "__main__":
+    main(sys.argv[1:])
