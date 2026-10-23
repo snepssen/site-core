@@ -270,6 +270,44 @@ def reindent(text, spaces):
                      for line in text.split("\n"))
 
 
+# Where each project runs, from one table. The cards used to carry a typed
+# string each, and it said "macOS · Windows · Linux" for four projects that had
+# been run on a Mac and only tested elsewhere by CI, and "macOS · iPhone" for
+# an Interpreter that also runs on an iPad. A project's `support` says, per
+# system, "runs" (somebody has used it there) or "untested" (it is built for
+# that system and nobody has run it there yet); the card and the contact
+# card are written from that. A project with no `support`, such as the hub,
+# keeps its own `platforms` line, which describes a stack rather than systems.
+PLATFORM_ORDER = ("macOS", "iPhone", "iPad", "iOS", "Linux", "Windows", "Android")
+SUPPORT_STATES = ("runs", "untested")
+
+
+def support(project):
+    """(systems it runs on, systems it is untested on), in PLATFORM_ORDER."""
+    table = project.get("support") or {}
+    for system, state in table.items():
+        if system not in PLATFORM_ORDER or state not in SUPPORT_STATES:
+            raise SystemExit(f"{project['slug']}: support has {system!r}: {state!r}; "
+                             f"systems are {', '.join(PLATFORM_ORDER)}, states {', '.join(SUPPORT_STATES)}")
+    return ([s for s in PLATFORM_ORDER if table.get(s) == "runs"],
+            [s for s in PLATFORM_ORDER if table.get(s) == "untested"])
+
+
+def platforms(project):
+    """The line under a card's index: where it runs, then where it is untested."""
+    if "support" not in project:
+        return project["platforms"]
+    runs, untested = support(project)
+    line = " · ".join(([project["stack"]] if project.get("stack") else []) + runs)
+    if untested:
+        line += " · untested: " + ", ".join(untested)
+    return line
+
+
+def either(names):
+    return names[0] if len(names) == 1 else ", ".join(names[:-1]) + " or " + names[-1]
+
+
 def grid_inner(ecosystem, slug):
     """The heading and the cards, without the section around them.
 
@@ -295,7 +333,7 @@ def grid_inner(ecosystem, slug):
         # theme the same way siphon's figures are: a dark thumbnail on a light
         # page is the one thing that would look obviously wrong.
         cards.append(f"""    <a class="ecosystem-card" data-project="{project['slug']}" style="--card-accent: var({project['accent']})" href="{project['url']}"{here}>
-      <div class="ecosystem-card__index"><span>{number:02d} / {project['index']}</span><span>{project['platforms']}</span></div>
+      <div class="ecosystem-card__index"><span>{number:02d} / {project['index']}</span><span>{platforms(project)}</span></div>
       <div class="ecosystem-card__glyph" aria-hidden="true">{project['glyph']}</div>
       <h3>{project['name']}</h3>
       <p>{project['blurb']}</p>
@@ -354,9 +392,14 @@ def contact_inner(page, ecosystem):
     rows = "\n".join(
         f'    <a href="{link["href"]}">{link["label"]}'
         f'<span>{link["detail"]} ↗</span></a>' for link in links)
+    # An untested system is offered, so the page says plainly that nobody has
+    # run it there yet and that hearing how it went is the point.
+    untested = support(project)[1]
+    untried = (f"\n  <p>{project['name']} has not been run on {either(untested)} yet. "
+               f"If you try it there, say what happened, working or not.</p>") if untested else ""
     return f"""  <p class="eyebrow">{copy['eyebrow']}</p>
   <h2>{copy['heading']}</h2>
-  <p>{meta.get('contact_note') or copy['note']}</p>
+  <p>{meta.get('contact_note') or copy['note']}</p>{untried}
   <div class="contact-card">
 {rows}
   </div>"""
