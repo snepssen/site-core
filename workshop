@@ -141,6 +141,18 @@ def release(core, version, dry_run):
             continue
         print(f"== {app}")
         lock = f"{swift['package']}/Package.resolved".removeprefix("./")
+        # The bump is committed and pushed wherever the checkout stands, so an
+        # app on a feature branch would carry it onto that branch's PR instead
+        # of main, and tracked changes there would be someone's work in progress.
+        branch = git(repo, "branch", "--show-current")
+        if branch != "main":
+            print(f"   on {branch or 'a detached HEAD'}, not main; skipped")
+            failed.append(app)
+            continue
+        if subprocess.run(["git", "-C", str(repo), "diff", "--quiet", "HEAD"]).returncode:
+            print("   has uncommitted changes; skipped")
+            failed.append(app)
+            continue
         # GitHub Actions bumps apps too (dependencies.yml): start from its latest.
         if subprocess.run(["git", "-C", str(repo), "pull", "-q", "--ff-only"]).returncode:
             print("   could not fast-forward; skipped")
