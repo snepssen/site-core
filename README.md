@@ -79,6 +79,6 @@ two disagree.
 
 MIT, copyright 2026 snepssen. See [LICENSE](LICENSE).
 
-The mark is Flower of Life geometry adapted from Pd4u's [CC0 Wikimedia SVG](https://commons.wikimedia.org/wiki/File:Flower_of_Life_SVG.svg).
+The mark is a snow leopard's coat and paw print, drawn for this repository and MIT like the rest of it.
 
 Pages generated into other repositories' `docs/` follow those repositories' own licences. MIT permits that.
